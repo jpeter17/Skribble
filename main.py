@@ -15,6 +15,11 @@ class model():
             self.bias.append(np.random.rand(self.node_count[i + 1], 1))
         print(self.bias[0].size)
         print(self.bias[1].size)
+        self.images, self.labels = loadlocal_mnist(
+        images_path='data/train-images.idx3-ubyte',
+        labels_path='data/train-labels.idx1-ubyte'
+        )
+        
 
     def recieve_data(self, data):
         entry = self.color.tolist() + data
@@ -41,24 +46,18 @@ class model():
         
     def NN(self, value):
         z = 1/255 * value.reshape(-1, 1)
-
         self.activation_vectors, self.z_vectors = [], []
-        self.activation_vectors.append(z)
+        self.activation_vectors.append(np.asarray(z))
         for i in range(len(self.node_count) - 1):
-            print()
-            self.z_vectors.append(np.asarray([self.weights[i] @ self.activation_vectors[i] + self.bias[i]]))
-            self.activation_vectors.append(self.sigmoid(self.z_vectors[i]))
-        return self.activation_vectors[-1]
+            self.z_vectors.append(np.asarray([(1/len(self.activation_vectors[i])) * (self.weights[i] @ self.activation_vectors[i]) + self.bias[i]]).reshape(-1, 1))
+            self.activation_vectors.append(self.sigmoid(self.z_vectors[i]).reshape(-1, 1))
+        return self.activation_vectors[-1].reshape(-1, 1)
 
-    def train(self, value, target):
-        value = value.reshape(-1, 1)
-        targets = []
-        for i in range(target - 1):
-            targets.append(0)
-        targets.append(target)
-        for i in range(10 - target):
-            targets.append(0)
-        print(targets)
+    def train(self):
+        idx = np.random.choice(len(self.images))
+        value = np.asarray(self.images[idx]).reshape(-1, 1)
+        target = np.zeros((10, 1))
+        target[self.labels[idx] - 1][0] = 1
         self.error_signal_vectors = []
         
         predictions = self.NN(value)
@@ -66,7 +65,7 @@ class model():
         error_signal = []
         # Get error signals of last layer 
         for i in range(len(predictions)):
-            dcost = 2 * (predictions[i] - targets[i])
+            dcost = 2 * (predictions[i] - target[i])
             # Get error signal of specfic node
             err_sig = dcost * self.dsig(self.z_vectors[-1][i])
             # Add to list for this layer
@@ -81,14 +80,19 @@ class model():
         
         # Build change in weight matrices
         dweights = []
+        print(self.error_signal_vectors[2])
         for i in range(len(self.node_count) - 1):
             matrix = self.error_signal_vectors[i] @ self.activation_vectors[-(i + 2)].reshape(1, -1)
             dweights.append(np.asarray(matrix))
+        print(np.amax(dweights[2]))
+        
 
         # Update weights and biases
         for i in range(len(self.node_count) - 1):
             self.weights[-(i + 1)] -= self.training_rate * dweights[i]
             self.bias[-(i + 1)] -= self.training_rate * self.error_signal_vectors[i]
+            
+        return predictions, target
 
 class view():
     def __init__():
@@ -99,12 +103,5 @@ class controller():
         self.v = []
 
 if __name__ == '__main__':
-    x, y = loadlocal_mnist(
-        images_path='data/train-images.idx3-ubyte',
-        labels_path='data/train-labels.idx1-ubyte'
-    )
-    print('Dimensions: %s x %s' % (x.shape[0], x.shape[1]))
-    print(y[0])
-    v = x[0]
     model = model()
-    print(model.NN(v))
+    model.train()
